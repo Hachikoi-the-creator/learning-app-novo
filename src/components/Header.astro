@@ -1,0 +1,83 @@
+---
+import Icon from "./ui/Icon.astro";
+
+interface Props {
+  active?: "dashboard" | "capture" | "review" | "settings";
+}
+const { active } = Astro.props;
+
+const links = [
+  { key: "dashboard", label: "Dashboard", href: "/", icon: "home" },
+  { key: "capture", label: "Capture", href: "/capture", icon: "sparkles" },
+  { key: "review", label: "Review", href: "/review", icon: "layers" },
+  { key: "settings", label: "Settings", href: "/settings", icon: "settings" },
+];
+---
+<header class="sticky top-0 z-40 border-b border-border glass">
+  <div class="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
+    <!-- Brand -->
+    <a href="/" class="flex items-center gap-2.5 font-semibold">
+      <span class="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-foreground shadow-sm">
+        <Icon name="shield" size={18} />
+      </span>
+      <span class="text-base tracking-tight">
+        novo<span class="text-primary">study</span>
+      </span>
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="ml-4 hidden items-center gap-1 md:flex">
+      {links.map((l) => (
+        <a href={l.href} class="nav-link" aria-current={active === l.key ? "page" : undefined}>
+          <Icon name={l.icon} size={16} />
+          {l.label}
+        </a>
+      ))}
+    </nav>
+
+    <div class="ml-auto flex items-center gap-2">
+      <a href="/capture" class="btn-primary hidden sm:inline-flex">
+        <Icon name="plus" size={16} />
+        New notes
+      </a>
+
+      <!-- Theme toggle -->
+      <button id="theme-toggle" class="btn-icon" aria-label="Toggle theme">
+        <span class="dark:hidden"><Icon name="moon" size={18} /></span>
+        <span class="hidden dark:inline"><Icon name="sun" size={18} /></span>
+      </button>
+
+      <!-- Mobile menu toggle -->
+      <button id="mobile-toggle" class="btn-icon md:hidden" aria-label="Open menu" aria-expanded="false">
+        <Icon name="menu" size={18} />
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile nav -->
+  <nav id="mobile-nav" class="hidden border-t border-border px-4 py-2 md:hidden">
+    {links.map((l) => (
+      <a href={l.href} class="nav-link w-full" aria-current={active === l.key ? "page" : undefined}>
+        <Icon name={l.icon} size={16} />
+        {l.label}
+      </a>
+    ))}
+  </nav>
+</header>
+
+<script>
+  // Theme toggle — persists to localStorage, toggles `.dark` on <html>.
+  const root = document.documentElement;
+  document.getElementById("theme-toggle")?.addEventListener("click", () => {
+    const isDark = root.classList.toggle("dark");
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+  });
+
+  // Mobile menu
+  const mobileToggle = document.getElementById("mobile-toggle");
+  const mobileNav = document.getElementById("mobile-nav");
+  mobileToggle?.addEventListener("click", () => {
+    const open = mobileNav?.classList.toggle("hidden") === false;
+    mobileToggle.setAttribute("aria-expanded", String(open));
+  });
+</script>

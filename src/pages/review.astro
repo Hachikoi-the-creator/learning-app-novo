@@ -1,0 +1,204 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Icon from "../components/ui/Icon.astro";
+import Badge from "../components/ui/Badge.astro";
+import { SAMPLE_CARDS, isDue, SRS_INTERVALS_DAYS } from "../lib/srs";
+
+// Build the due queue (ordered by next_review_at ascending — get_due_cards()).
+const dueQueue = SAMPLE_CARDS
+  .filter((c) => isDue(c))
+  .sort((a, b) => +new Date(a.next_review_at) - +new Date(b.next_review_at));
+
+// Serialize for the client script.
+const queueJson = JSON.stringify(
+  dueQueue.map((c) => ({
+    id: c.id,
+    topic_category: c.topic_category,
+    title: c.title,
+    content_html: c.content_html,
+    interaction_count: c.interaction_count,
+  }))
+);
+const intervalsJson = JSON.stringify(SRS_INTERVALS_DAYS);
+---
+<Layout title="Review · novostudy" active="review">
+  <div class="mx-auto max-w-2xl">
+    <!-- Progress header -->
+    <div id="review-header" class="mb-6">
+      <div class="mb-2 flex items-center justify-between text-sm">
+        <span class="font-medium">Review session</span>
+        <span class="text-muted-foreground"><span id="progress-current">1</span> / <span id="progress-total">{dueQueue.length}</span></span>
+      </div>
+      <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div id="progress-bar" class="h-full rounded-full bg-primary transition-all duration-300" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Flip card stage -->
+    <div id="card-stage" class={dueQueue.length === 0 ? "hidden" : ""}>
+      <div id="flip-card" class="flip-card min-h-[320px] cursor-pointer select-none" role="button" tabindex="0" aria-label="Flip card">
+        <div class="flip-inner">
+          <!-- Front (prompt) -->
+          <div class="flip-face card flex flex-col items-center justify-center gap-4 p-8 text-center">
+            <Badge variant="accent" class="self-center"><span id="front-category"></span></Badge>
+            <h2 id="front-title" class="text-xl font-semibold"></h2>
+            <p class="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Icon name="rotate" size={14} /> Click to reveal
+            </p>
+          </div>
+          <!-- Back (answer) -->
+          <div class="flip-face flip-back card flex flex-col gap-3 overflow-y-auto p-6 text-left">
+            <Badge variant="accent" class="self-start"><span id="back-category"></span></Badge>
+            <h2 id="back-title" class="text-lg font-semibold"></h2>
+            <div id="back-content" class="prose-note text-sm"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grading controls -->
+      <div id="grade-controls" class="mt-6 hidden gap-3 sm:grid-cols-2">
+        <button id="fail-btn" class="btn-destructive btn-lg w-full">
+          <Icon name="x" size={18} /> Forgot
+          <span class="ml-1 text-xs opacity-80">· review tomorrow</span>
+        </button>
+        <button id="pass-btn" class="btn-success btn-lg w-full">
+          <Icon name="check" size={18} /> Got it
+          <span id="pass-hint" class="ml-1 text-xs opacity-80"></span>
+        </button>
+      </div>
+      <p id="reveal-hint" class="mt-6 text-center text-sm text-muted-foreground">
+        Try to recall the answer, then flip the card.
+      </p>
+    </div>
+
+    <!-- Empty / complete state -->
+    <div id="complete-state" class={dueQueue.length === 0 ? "" : "hidden"}>
+      <div class="card flex flex-col items-center justify-center gap-3 p-12 text-center">
+        <div class="flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
+          <Icon name="check" size={30} />
+        </div>
+        <h2 class="text-xl font-semibold">Session complete!</h2>
+        <p id="complete-summary" class="text-sm text-muted-foreground">You're all caught up. Nice work.</p>
+        <div class="mt-3 flex gap-3">
+          <a href="/" class="btn-outline"><Icon name="home" size={16} /> Dashboard</a>
+          <a href="/capture" class="btn-primary"><Icon name="plus" size={16} /> Add more notes</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ queueJson, intervalsJson }}>
+  const queue = JSON.parse(queueJson);
+  const INTERVALS = JSON.parse(intervalsJson);
+
+  // calculate_next_review → return interval in days for a given interaction count.
+  function nextIntervalDays(count) {
+    return count >= INTERVALS.length ? INTERVALS[INTERVALS.length - 1] * 2 : INTERVALS[count];
+  }
+
+  let index = 0;
+  let passed = 0;
+  let failed = 0;
+
+  const flipCard = document.getElementById("flip-card");
+  const grade = document.getElementById("grade-controls");
+  const revealHint = document.getElementById("reveal-hint");
+  const stage = document.getElementById("card-stage");
+  const complete = document.getElementById("complete-state");
+  const bar = document.getElementById("progress-bar");
+  const curEl = document.getElementById("progress-current");
+
+  function render() {
+    const card = queue[index];
+    if (!card) return finish();
+    flipCard.classList.remove("flipped");
+    grade.classList.add("hidden");
+    grade.classList.remove("grid");
+    revealHint.classList.remove("hidden");
+
+    document.getElementById("front-category").textContent = card.topic_category;
+    document.getElementById("front-title").textContent = card.title;
+    document.getElementById("back-category").textContent = card.topic_category;
+    document.getElementById("back-title").textContent = card.title;
+    document.getElementById("back-content").innerHTML = card.content_html;
+
+    // On success the streak advances; preview the resulting interval.
+    const days = nextIntervalDays(card.interaction_count + 1);
+    document.getElementById("pass-hint").textContent = `· +${days}d`;
+
+    curEl.textContent = String(index + 1);
+    bar.style.width = `${(index / queue.length) * 100}%`;
+  }
+
+  function flip() {
+    const nowFlipped = flipCard.classList.toggle("flipped");
+    if (nowFlipped) {
+      grade.classList.remove("hidden");
+      grade.classList.add("grid");
+      revealHint.classList.add("hidden");
+    }
+  }
+
+  // mark_card_reviewed(card_id, success)
+  function mark(success) {
+    const card = queue[index];
+    if (success) {
+      card.interaction_count += 1;
+      passed++;
+    } else {
+      card.interaction_count = 0; // reset streak on failure
+      failed++;
+    }
+    index++;
+    if (index >= queue.length) finish();
+    else render();
+  }
+
+  function finish() {
+    bar.style.width = "100%";
+    stage.classList.add("hidden");
+    complete.classList.remove("hidden");
+    const total = passed + failed;
+    if (total > 0) {
+      document.getElementById("complete-summary").textContent =
+        `Reviewed ${total} card${total === 1 ? "" : "s"} — ${passed} remembered, ${failed} to revisit.`;
+    }
+  }
+
+  flipCard?.addEventListener("click", flip);
+  flipCard?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); }
+  });
+  document.getElementById("pass-btn")?.addEventListener("click", () => mark(true));
+  document.getElementById("fail-btn")?.addEventListener("click", () => mark(false));
+
+  if (queue.length > 0) render();
+</script>
+
+<style>
+  .flip-card {
+    perspective: 1200px;
+  }
+  .flip-inner {
+    position: relative;
+    width: 100%;
+    min-height: 320px;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+  .flip-card.flipped .flip-inner {
+    transform: rotateY(180deg);
+  }
+  .flip-face {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+  .flip-back {
+    transform: rotateY(180deg);
+  }
+</style>

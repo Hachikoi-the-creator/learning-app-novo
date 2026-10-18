@@ -1,0 +1,16 @@
+---
+interface Props {
+  class?: string;
+  hover?: boolean;
+  [key: string]: any;
+}
+const { class: className = "", hover = false, ...rest } = Astro.props;
+const classes = [
+  "card p-5",
+  hover ? "transition-all duration-200 hover:shadow-md hover:-translate-y-0.5" : "",
+  className,
+].filter(Boolean).join(" ");
+---
+<div class={classes} {...rest}>
+  <slot />
+</div>

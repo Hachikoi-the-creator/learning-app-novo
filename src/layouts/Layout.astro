@@ -1,23 +1,47 @@
+---
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+
+interface Props {
+  title?: string;
+  active?: "dashboard" | "capture" | "review" | "settings";
+}
+const { title = "novostudy", active } = Astro.props;
+---
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body>
-		<slot />
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content="A spaced-repetition study app for cybersecurity with AI fact-checking." />
+    <title>{title}</title>
+    <!-- Preconnect + fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- No-flash theme: apply saved/system theme before paint -->
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (saved === "dark" || (!saved && prefersDark)) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <Header active={active} />
+    <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <slot />
+    </main>
+    <footer class="mx-auto max-w-6xl px-4 py-10 text-center text-xs text-muted-foreground sm:px-6">
+      novostudy · spaced-repetition study with AI fact-checking · built with Astro + Tailwind
+    </footer>
+  </body>
 </html>
-
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
-</style>

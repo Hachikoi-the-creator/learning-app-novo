@@ -1,11 +1,95 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
+import StatCard from "../components/StatCard.astro";
+import CardTile from "../components/CardTile.astro";
+import Icon from "../components/ui/Icon.astro";
+import { SAMPLE_CARDS, isDue } from "../lib/srs";
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const cards = SAMPLE_CARDS;
+const dueCards = cards.filter((c) => isDue(c));
+const upcomingCards = cards.filter((c) => !isDue(c));
+
+const totalReps = cards.reduce((n, c) => n + c.interaction_count, 0);
+const categories = new Set(cards.map((c) => c.topic_category)).size;
+
+// icon markup for stat cards
+const iconMarkup = {
+  layers: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12.5l8.58 3.91a2 2 0 0 0 1.66 0L20.82 12.5"/></svg>',
+  clock: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  flame: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+  brain: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></svg>',
+};
 ---
+<Layout title="Dashboard · novostudy" active="dashboard">
+  <!-- Hero / review callout -->
+  <section class="animate-in mb-8 overflow-hidden rounded-[var(--radius-lg)] border border-border bg-gradient-to-br from-primary/15 via-accent/20 to-transparent p-6 sm:p-8">
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div class="max-w-xl">
+        <p class="mb-1 text-sm font-medium text-primary">Welcome back</p>
+        <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">
+          You have <span class="text-primary">{dueCards.length}</span> card{dueCards.length === 1 ? "" : "s"} ready to review
+        </h1>
+        <p class="mt-2 text-sm text-muted-foreground">
+          Stay sharp — spaced repetition schedules each card right before you forget it.
+        </p>
+      </div>
+      <div class="flex shrink-0 gap-3">
+        <a href="/review" class="btn-primary btn-lg">
+          <Icon name="layers" size={18} />
+          Start review
+        </a>
+        <a href="/capture" class="btn-outline btn-lg">
+          <Icon name="plus" size={18} />
+          Add notes
+        </a>
+      </div>
+    </div>
+  </section>
 
-<Layout>
-	<Welcome />
+  <!-- Stats -->
+  <section class="mb-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <StatCard label="Due today" value={dueCards.length} tone="warning" icon={iconMarkup.clock} />
+    <StatCard label="Total cards" value={cards.length} tone="primary" icon={iconMarkup.layers} />
+    <StatCard label="Topics" value={categories} tone="accent" icon={iconMarkup.brain} />
+    <StatCard label="Total reps" value={totalReps} tone="success" icon={iconMarkup.flame} />
+  </section>
+
+  <!-- Due now -->
+  <section class="mb-10">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="flex items-center gap-2 text-lg font-semibold">
+        <Icon name="clock" size={18} class="text-warning" />
+        Due now
+      </h2>
+      {dueCards.length > 0 && <a href="/review" class="text-sm font-medium text-primary hover:underline">Review all →</a>}
+    </div>
+    {dueCards.length > 0 ? (
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {dueCards.map((c) => <CardTile card={c} />)}
+      </div>
+    ) : (
+      <div class="card flex flex-col items-center justify-center gap-2 p-10 text-center">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-success">
+          <Icon name="check" size={22} />
+        </div>
+        <p class="font-medium">All caught up!</p>
+        <p class="text-sm text-muted-foreground">No cards due right now. Come back later or add new notes.</p>
+      </div>
+    )}
+  </section>
+
+  <!-- Upcoming -->
+  <section>
+    <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold">
+      <Icon name="layers" size={18} class="text-primary" />
+      Upcoming
+    </h2>
+    {upcomingCards.length > 0 ? (
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {upcomingCards.map((c) => <CardTile card={c} />)}
+      </div>
+    ) : (
+      <p class="text-sm text-muted-foreground">Nothing scheduled yet.</p>
+    )}
+  </section>
 </Layout>

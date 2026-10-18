@@ -1,0 +1,309 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Modal from "../components/ui/Modal.astro";
+import Icon from "../components/ui/Icon.astro";
+import Badge from "../components/ui/Badge.astro";
+import { TOPIC_CATEGORIES } from "../lib/srs";
+---
+<Layout title="Capture · novostudy" active="capture">
+  <!-- Success banner (hidden by default) -->
+  <div id="success-banner" class="animate-in mb-6 hidden items-center gap-3 rounded-[var(--radius-md)] border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
+    <Icon name="check" size={18} />
+    <span id="success-text">Added cards to your review queue.</span>
+  </div>
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight">Capture notes</h1>
+    <p class="mt-1 text-sm text-muted-foreground">
+      Dump your study notes below. The AI tutor will break them into cards and fact-check the technical claims.
+    </p>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-[1fr_280px]">
+    <!-- Editor column -->
+    <div class="card overflow-hidden p-0">
+      <!-- Toolbar -->
+      <div class="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 px-3 py-2">
+        <button class="btn-ghost h-8 px-2 font-bold" data-cmd="bold" title="Bold">B</button>
+        <button class="btn-ghost h-8 px-2 italic" data-cmd="italic" title="Italic">I</button>
+        <button class="btn-ghost h-8 px-2 font-semibold" data-cmd="formatBlock" data-value="h3" title="Heading">H</button>
+        <button class="btn-ghost h-8 px-2" data-cmd="insertUnorderedList" title="Bullet list">• List</button>
+        <button class="btn-ghost h-8 px-2 font-mono text-xs" data-cmd="formatBlock" data-value="pre" title="Code block">&lt;/&gt;</button>
+        <span class="mx-1 h-5 w-px bg-border"></span>
+        <button class="btn-ghost h-8 px-2 text-muted-foreground" id="clear-editor" title="Clear">Clear</button>
+      </div>
+      <!-- Contenteditable WYSIWYG -->
+      <div
+        id="editor"
+        class="prose-note min-h-[320px] w-full px-4 py-4 text-sm leading-relaxed focus:outline-none"
+        contenteditable="true"
+        data-placeholder="Paste or type your notes here… e.g. SSH runs on port 23 by default and you should disable root login."
+      ></div>
+      <!-- Action bar -->
+      <div class="flex items-center justify-between gap-3 border-t border-border bg-muted/30 px-4 py-3">
+        <p class="text-xs text-muted-foreground"><span id="word-count">0</span> words</p>
+        <button id="analyze-btn" class="btn-primary" data-open-modal="proposal-modal">
+          <Icon name="sparkles" size={16} />
+          Analyze with AI
+        </button>
+      </div>
+    </div>
+
+    <!-- Tips sidebar -->
+    <aside class="space-y-4">
+      <div class="card p-5">
+        <h3 class="flex items-center gap-2 text-sm font-semibold">
+          <Icon name="brain" size={16} class="text-primary" /> How it works
+        </h3>
+        <ol class="mt-3 space-y-2.5 text-sm text-muted-foreground">
+          <li class="flex gap-2"><span class="font-semibold text-primary">1.</span> Write or paste raw notes.</li>
+          <li class="flex gap-2"><span class="font-semibold text-primary">2.</span> AI splits them into modular cards.</li>
+          <li class="flex gap-2"><span class="font-semibold text-primary">3.</span> Technical claims get fact-checked.</li>
+          <li class="flex gap-2"><span class="font-semibold text-primary">4.</span> Approve, edit, or reject each card.</li>
+        </ol>
+      </div>
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold">Topic categories</h3>
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          {TOPIC_CATEGORIES.map((t) => <Badge variant="secondary">{t}</Badge>)}
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Loader overlay -->
+  <div id="loader" class="fixed inset-0 z-50 hidden items-center justify-center bg-background/70 backdrop-blur-sm">
+    <div class="card flex flex-col items-center gap-4 px-8 py-7">
+      <div class="h-10 w-10 animate-spin rounded-full border-4 border-primary/25 border-t-primary"></div>
+      <p class="text-sm font-medium">Analyzing notes & verifying technical facts…</p>
+    </div>
+  </div>
+
+  <!-- Proposal modal -->
+  <Modal
+    id="proposal-modal"
+    size="xl"
+    title="Review & approve AI-structured notes"
+  >
+    <p id="proposal-summary" class="-mt-1 mb-4 text-sm text-muted-foreground"></p>
+    <div id="demo-note" class="mb-4 hidden items-center gap-2 rounded-[var(--radius-md)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+      <Icon name="alert" size={14} />
+      Demo result — no provider key configured. Add one in <a href="/settings" class="font-medium underline">Settings</a> to analyze with your own AI.
+    </div>
+    <div class="space-y-5" id="proposal-list"></div>
+
+    <div slot="footer" class="flex items-center justify-between gap-3 border-t border-border p-5">
+      <p class="text-sm text-muted-foreground"><span id="approved-count">0</span> of <span id="proposal-total">0</span> cards selected</p>
+      <div class="flex gap-2">
+        <button class="btn-outline" data-close-modal="proposal-modal">Cancel</button>
+        <button id="commit-btn" class="btn-primary" data-close-modal="proposal-modal">
+          <Icon name="check" size={16} /> Save to review queue
+        </button>
+      </div>
+    </div>
+  </Modal>
+</Layout>
+
+<script>
+  // ── WYSIWYG editor behaviour ──────────────────────────────
+  const editor = document.getElementById("editor") as HTMLElement;
+  const wordCount = document.getElementById("word-count")!;
+
+  function updateWordCount() {
+    const text = editor.innerText.trim();
+    wordCount.textContent = String(text ? text.split(/\s+/).length : 0);
+  }
+  editor?.addEventListener("input", updateWordCount);
+
+  document.querySelectorAll<HTMLElement>("[data-cmd]").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => {
+      e.preventDefault(); // keep selection
+      const cmd = btn.dataset.cmd!;
+      const value = btn.dataset.value;
+      editor.focus();
+      document.execCommand(cmd, false, value);
+    });
+  });
+
+  document.getElementById("clear-editor")?.addEventListener("click", () => {
+    editor.innerHTML = "";
+    updateWordCount();
+  });
+
+  // ── Verdict badge metadata ────────────────────────────────
+  const VERDICTS: Record<string, { label: string; cls: string; icon: string }> = {
+    VERIFIED: { label: "Verified", cls: "badge-success", icon: '<path d="M20 6 9 17l-5-5"/>' },
+    QUESTIONABLE: { label: "Questionable", cls: "badge-warning", icon: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/>' },
+    INCORRECT: { label: "Incorrect", cls: "badge-destructive", icon: '<path d="M18 6 6 18M6 6l12 12"/>' },
+  };
+
+  function esc(s: string): string {
+    const d = document.createElement("div");
+    d.textContent = s ?? "";
+    return d.innerHTML;
+  }
+
+  function svg(inner: string, size = 12): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  }
+
+  // ── State ─────────────────────────────────────────────────
+  const approved = new Set<string>();
+  const list = document.getElementById("proposal-list")!;
+  const summaryEl = document.getElementById("proposal-summary")!;
+  const demoNote = document.getElementById("demo-note")!;
+  const approvedCount = document.getElementById("approved-count")!;
+  const totalEl = document.getElementById("proposal-total")!;
+
+  function renderProposals(result: any) {
+    approved.clear();
+    summaryEl.textContent = result.summary_of_session ?? "";
+    demoNote.style.display = result.demo ? "flex" : "none";
+    const cards = Array.isArray(result.proposed_cards) ? result.proposed_cards : [];
+    totalEl.textContent = String(cards.length);
+    approvedCount.textContent = "0";
+
+    list.innerHTML = cards
+      .map((pc: any) => {
+        const facts = (pc.fact_checks ?? [])
+          .map((fc: any) => {
+            const m = VERDICTS[fc.verdict] ?? VERDICTS.QUESTIONABLE;
+            return `
+              <div class="rounded-md border border-border/70 bg-card p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-sm font-medium">${esc(fc.original_claim)}</p>
+                  <span class="${m.cls}">${svg(m.icon)} ${m.label}</span>
+                </div>
+                ${fc.correction ? `<p class="mt-1.5 text-sm"><span class="font-semibold text-primary">Correction:</span> ${esc(fc.correction)}</p>` : ""}
+                ${fc.reason ? `<p class="mt-1 text-xs text-muted-foreground">${esc(fc.reason)}</p>` : ""}
+              </div>`;
+          })
+          .join("");
+
+        return `
+          <div class="rounded-[var(--radius-md)] border border-border bg-background/40 p-4" data-card-id="${esc(pc.temp_id)}">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <span class="badge-accent">${esc(pc.topic_category)}</span>
+                <h3 class="mt-2 text-base font-semibold">${esc(pc.suggested_title)}</h3>
+              </div>
+              <span class="status-pill badge-muted" data-status="${esc(pc.temp_id)}">Pending</span>
+            </div>
+            <div class="prose-note mt-3 text-sm text-muted-foreground">${pc.suggested_content_html ?? ""}</div>
+            ${facts ? `<div class="mt-4 space-y-2"><p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fact checks</p>${facts}</div>` : ""}
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button class="btn-success text-xs px-3 py-1.5" data-action="approve" data-target="${esc(pc.temp_id)}">${svg('<path d="M20 6 9 17l-5-5"/>', 14)} Approve</button>
+              <button class="btn-secondary text-xs px-3 py-1.5" data-action="corrections" data-target="${esc(pc.temp_id)}">Apply corrections</button>
+              <button class="btn-outline text-xs px-3 py-1.5" data-action="edit" data-target="${esc(pc.temp_id)}">Edit</button>
+              <button class="btn-ghost text-xs px-3 py-1.5 text-destructive" data-action="reject" data-target="${esc(pc.temp_id)}">${svg('<path d="M18 6 6 18M6 6l12 12"/>', 14)} Reject</button>
+            </div>
+          </div>`;
+      })
+      .join("");
+  }
+
+  function setStatus(id: string, label: string, cls: string) {
+    const pill = document.querySelector<HTMLElement>(`[data-status="${id}"]`);
+    if (pill) {
+      pill.textContent = label;
+      pill.className = `status-pill ${cls}`;
+    }
+    approvedCount.textContent = String(approved.size);
+  }
+
+  // Delegated per-card actions (list is re-rendered each analysis).
+  list.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>("[data-action]");
+    if (!btn) return;
+    const id = btn.dataset.target!;
+    const block = document.querySelector<HTMLElement>(`[data-card-id="${id}"]`)!;
+    const content = block.querySelector<HTMLElement>(".prose-note")!;
+    switch (btn.dataset.action) {
+      case "approve":
+        approved.add(id);
+        setStatus(id, "Approved", "badge-success");
+        block.classList.remove("opacity-50");
+        content.setAttribute("contenteditable", "false");
+        break;
+      case "corrections":
+        approved.add(id);
+        setStatus(id, "Corrections applied", "badge-primary");
+        block.classList.remove("opacity-50");
+        break;
+      case "edit":
+        approved.add(id);
+        setStatus(id, "Editing", "badge-warning");
+        content.setAttribute("contenteditable", "true");
+        content.classList.add("rounded", "ring-2", "ring-ring/40", "p-2");
+        content.focus();
+        break;
+      case "reject":
+        approved.delete(id);
+        setStatus(id, "Rejected", "badge-destructive");
+        block.classList.add("opacity-50");
+        break;
+    }
+  });
+
+  // ── Analyze flow: call the API, then open the modal ───────
+  const analyzeBtn = document.getElementById("analyze-btn") as HTMLButtonElement;
+  const loader = document.getElementById("loader")!;
+  const modal = document.getElementById("proposal-modal") as HTMLDialogElement;
+
+  analyzeBtn.addEventListener(
+    "click",
+    async (e) => {
+      e.stopImmediatePropagation(); // suppress the generic data-open-modal handler
+      const notes = editor.innerHTML.trim();
+      if (!editor.innerText.trim()) {
+        editor.focus();
+        editor.classList.add("ring-2", "ring-destructive");
+        setTimeout(() => editor.classList.remove("ring-2", "ring-destructive"), 1200);
+        return;
+      }
+      loader.style.display = "flex";
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error ?? "Analysis failed.");
+        renderProposals(result);
+        modal.showModal();
+      } catch (err) {
+        alert(`Analysis failed: ${(err as Error).message}`);
+      } finally {
+        loader.style.display = "none";
+      }
+    },
+    true
+  );
+
+  // ── Commit approved cards ─────────────────────────────────
+  document.getElementById("commit-btn")?.addEventListener("click", () => {
+    const n = approved.size;
+    const banner = document.getElementById("success-banner")!;
+    const text = document.getElementById("success-text")!;
+    text.textContent = `Added ${n} new card${n === 1 ? "" : "s"} to your review queue.`;
+    banner.style.display = "flex";
+    editor.innerHTML = "";
+    updateWordCount();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+</script>
+
+<style>
+  #editor:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+  .status-pill {
+    border-radius: 9999px;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
