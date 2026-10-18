@@ -230,7 +230,11 @@ src/
     └── global.css     design tokens + component classes
 ```
 
-> **Note:** The AI analysis and persistence layers are UI-only mocks for now — `src/lib/srs.ts` ships sample cards (`SAMPLE_CARDS`) and a canned analysis result (`SAMPLE_ANALYSIS`). Wire `analyze_study_session()` to a real LLM and swap the sample data for a database to make it live.
+> **Note:** The Dashboard (`/`) and Review (`/review`) pages are server-rendered and read
+> your real cards from the Supabase `study_cards` table via `src/lib/cards.ts`
+> (`getActiveCards()` / `getDueCards()`). With no DB configured they show empty states.
+> `src/lib/srs.ts` still ships a canned `SAMPLE_ANALYSIS` used only as the Capture-page
+> fallback when no AI provider key is set.
 
 ### Run it
 
@@ -276,8 +280,8 @@ cp .env.example .env
 
 | Variable | Where to find it | Notes |
 | --- | --- | --- |
-| `SUPABASE_URL` | Supabase → Project Settings → API | project URL |
-| `SUPABASE_KEY` | same page | **server-only**, bypasses RLS — never ship to the browser |
+| `PUBLIC_SUPABASE_URL` | Supabase → Connect panel (Astro) | project URL |
+| `PUBLIC_SUPABASE_PUBLISHABLE_KEY` | same panel | publishable (public) key; access governed by your RLS policies |
 | `CREDENTIALS_MASTER_KEY` | generate (below) | the one secret kept outside the DB |
 
 Generate a master key:

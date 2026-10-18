@@ -2,12 +2,13 @@
 import Layout from "../layouts/Layout.astro";
 import Icon from "../components/ui/Icon.astro";
 import Badge from "../components/ui/Badge.astro";
-import { SAMPLE_CARDS, isDue, SRS_INTERVALS_DAYS } from "../lib/srs";
+import { SRS_INTERVALS_DAYS } from "../lib/srs";
+import { getDueCards } from "../lib/cards";
 
-// Build the due queue (ordered by next_review_at ascending — get_due_cards()).
-const dueQueue = SAMPLE_CARDS
-  .filter((c) => isDue(c))
-  .sort((a, b) => +new Date(a.next_review_at) - +new Date(b.next_review_at));
+// Server-rendered: pull the real due queue from Supabase (get_due_cards()).
+export const prerender = false;
+
+const dueQueue = await getDueCards();
 
 // Serialize for the client script.
 const queueJson = JSON.stringify(

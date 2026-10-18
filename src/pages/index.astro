@@ -3,9 +3,13 @@ import Layout from "../layouts/Layout.astro";
 import StatCard from "../components/StatCard.astro";
 import CardTile from "../components/CardTile.astro";
 import Icon from "../components/ui/Icon.astro";
-import { SAMPLE_CARDS, isDue } from "../lib/srs";
+import { isDue } from "../lib/srs";
+import { getActiveCards } from "../lib/cards";
 
-const cards = SAMPLE_CARDS;
+// Server-rendered: read the user's real cards from Supabase.
+export const prerender = false;
+
+const cards = await getActiveCards();
 const dueCards = cards.filter((c) => isDue(c));
 const upcomingCards = cards.filter((c) => !isDue(c));
 

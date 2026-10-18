@@ -21,7 +21,7 @@ function json(body: unknown, status = 200): Response {
 function requireConfig(): Response | null {
   if (!isSupabaseConfigured()) {
     return json(
-      { error: "Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY." },
+      { error: "Supabase is not configured. Set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY." },
       503
     );
   }
