@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 import node from '@astrojs/node';
 
+import vercel from '@astrojs/vercel';
+
 // https://astro.build/config
 export default defineConfig({
   // Pages are prerendered static by default; API routes opt into
@@ -14,7 +16,5 @@ export default defineConfig({
     plugins: [tailwindcss()],
   },
 
-  adapter: node({
-    mode: 'standalone',
-  }),
+  adapter: vercel(),
 });
